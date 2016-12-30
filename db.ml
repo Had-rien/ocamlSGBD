@@ -117,6 +117,14 @@ let rec tmap f (Trie (value,tList)) =
 		| _ -> Trie ((f value), (CMap.map (tmap f) tList))
 ;;
 
+(*
+	@ requires a trie that is not null but might be emptyTrie, f is a function that takes 2 Value and return one
+	@ ensures to apply f to all values recursivly 
+	@ raises
+*)(*
+let rec fold_line fon acc (Trie (value,tList) as trie) = (CMap.fold fon acc tList )
+;;
+*)
 (* 
  	@requires str might be empty but not null, the trie must exist but might be emptyTrie, ele
 	@ ensures to call addToLine only if we insert a not empty string
@@ -124,21 +132,30 @@ let rec tmap f (Trie (value,tList)) =
 *)
 let checkAddTrie str ele trie = match ele with
 	| "" -> trie
-	| _ -> addToLine str ((Value ele)) trie
+	| _ -> addToLine str (Value ele) trie
 ;;
 
 (*----------end of line representation functions ------*)
 
 (* type for lines witch is a collection of line *)
-type 'a lines = ('a value) list
+type 'a lines = ('a value) trie
 ;;
 
  (* type of our table  it contains the description (schema), the data itsself in lines and constraint with constraint_type *)
 type 'a table = { s : schema; l : ('a value) lines; c : constraint_type}
 ;;
 
+let rec getClef line columnList = match columnList with
+	| [] -> ""
+	| c1::[] -> if (String.get c1 0) = 'c' then c1 else ""
+	| c1::l -> match (String.get c1 0) with
+			| 'c' -> (match (findInLine c1 line) with 
+				| Value (n) ->  n
+				| Null -> "" )
+			| _ -> getClef line l
+;;
 
-let addLine newL lineList = newL::lineList
+let addLine newL (s, l, c) =  (s, (addToLine (getClef newL s ) (Value newL) l), c)
 ;;
 
 (*----------TEST----------------*)
@@ -146,19 +163,18 @@ let addLine newL lineList = newL::lineList
 
 let test = checkAddTrie "teto" "test" emptyTrie;;
 
-let test = checkAddTrie "tata" "yep" test;;
+let test = checkAddTrie "ctata" "yep" test;;
 
-let test = checkAddTrie "tooooo" "non" test;;
+let test = checkAddTrie "tooo" "non" test;;
 
 let test = checkAddTrie "null" "" test;;
-(*
-addToLine test [];;
-*)
+
+
 printStr ((findInLine "toto" test));;
 print_newline ();;
 printTrie ' ' test;;
 
-(* test of tmap, exemple of a function needed for tmap *)
+(* test of tmap, exemple of a function needed for tmap  *)
 let uppercaseValue value = match value with
 	| Null -> Null
 	| Value a -> Value ((String.uppercase_ascii a))
@@ -166,11 +182,29 @@ let uppercaseValue value = match value with
 
 printTrie ' ' (tmap uppercaseValue test);;
 
+(* test of fold_line, exemple of a function needed for fold_line : (key -> 'a -> 'b -> 'b) *)
+let concatLine car value acc = match value with
+	| Null -> acc
+	| Value a -> (String.concat "; " (acc::a::[]))
+;;
+(*
+print_string (fold_line concatLine "ligne" test);;
+*)
+let schemaTest = "teto"::"ctata"::"tooo"::[]
+;;
 
-let linesList = addLine test [];;
+let testTable = (schemaTest, emptyTrie, "notnull")
+;;
 
+let testTable = addLine test testTable
+;;
 
+let testTable = addLine test testTable
+;;
 
+(* marche pas puisque le trie de line ne stocke pas de string value mais des line value *)
+let printTable (s, l, c) = printTrie ' ' l
+;;
 
 
 (* todo : complete *)
